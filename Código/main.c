@@ -70,3 +70,12 @@ void* routine(void* args)
     printf("Nós passamos a barreira\n");
     return NULL;
 }
+
+// Basicamente essa rotina que eu criei foi um teste para verificar o funcionamento das barreiras
+// Agora é necessário implementar o algoritmo para verificar se a quantidade de oxigênios e hidrogênios 
+// são equivalentes para poderem fazer bold()
+
+
+//Criar função bold()
+// Criar funções rotinas paras threads oxygen() e hidrogen(), "Olhar a documentação"
+// Entender e criar a função mutex()
