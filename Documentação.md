@@ -6,12 +6,14 @@ Puzzle: Write synchronization code for oxygen and hydrogen molecules that enforc
 
 ## 5.6.1 H2O hint
 Variáveis usadasa
+```python
 mutex = Semaphore(1) 
 oxygen = 0 
 hydrogen = 0
 barrier = Barrier(3)
 oxyQueue = Semaphore(0)
 hydroQueue = Semaphore(0)
+```
 oxygen and hydrogen are counters, protected by mutex. 
 Barrier is where each set of three threads meets after invoking bond and before allowing the next set of threads to proceed. oxyQueue is the semaphore oxygen threads wait on; hydroQueue is the semaphore hydrogen threads wait on. 
 I am using the naming convention for queues, so oxyQueue.wait() means “join the oxygen queue” and oxyQueue.signal() means “release an oxygen thread from the queue.”
@@ -20,22 +22,28 @@ I am using the naming convention for queues, so oxyQueue.wait() means “join th
 Initially hydroQueue and oxyQueue are locked. When an oxygen thread arrives it signals hydroQueue twice, allowing two hydrogens to proceed. Then the oxygen thread waits for the hydrogen threads to arrive.
 
 ### Oxygen Code
+```python
 mutex.wait() 
-  oxygen += 1 
-  if hydrogen >= 2: 
+oxygen += 1 
+if hydrogen >= 2: 
     hydroQueue.signal(2) 
-    hydrogen-= 2 
+    hydrogen -= 2 
     oxyQueue.signal() 
-    oxygen-= 1 
-  else: 
+    oxygen -= 1 
+else: 
     mutex.signal() 
-  oxyQueue.wait() 
-  bond() 
-  barrier.wait() 
-  mutex.signal()
+
+oxyQueue.wait() 
+bond() 
+barrier.wait() 
+mutex.signal()
+```
+
+
 
 
 ### Hydrogen Code
+```python
 mutex.wait() 
   hydrogen += 1 
   if hydrogen >= 2 and oxygen >= 1: 
@@ -48,6 +56,8 @@ mutex.wait()
   hydroQueue.wait() 
   bond() 
   barrier.wait()
+
+```
 
   An unusual feature of this solution is that the exit point of the mutex is ambiguous. In some cases, threads enter the mutex, update the counter, and exit the mutex. But when a thread arrives that forms a complete set, it has to keep the mutex in order to bar subsequent threads until the current set have invoked bond. 
   After invoking bond, the three threads wait at a barrier. When the barrier opens, we know that all three threads have invoked bond and that one of them holds the mutex. We don’t know which thread holds the mutex, but it doesn’t matter as long as only one of them releases it. Since we know there is only one oxygen thread, we make it do the work. 
