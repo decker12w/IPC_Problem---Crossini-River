@@ -1,64 +1,82 @@
-# 5.6 Building H2O 
-This problem has been a staple of the Operating Systems class at U.C. 
-Berkeley for at least a decade. It seems to be based on an exercise in Andrews’s Concurrent Programming [1]. 
-There are two kinds of threads, oxygen and hydrogen. In order to assemble these threads into water molecules, we have to create a barrier that makes each thread wait until a complete molecule is ready to proceed. As each thread passes the barrier, it should invoke bond. You must guarantee that all the threads from one molecule invoke bond before any of the threads from the next molecule do. In other words: • If an oxygen thread arrives at the barrier when no hydrogen threads are present, it has to wait for two hydrogen threads. • If a hydrogen thread arrives at the barrier when no other threads are present, it has to wait for an oxygen thread and another hydrogen thread. We don’t have to worry about matching the threads up explicitly; that is, the threads do not necessarily know which other threads they are paired up with. The key is just that threads pass the barrier in complete sets; thus, if we examine the sequence of threads that invoke bond and divide them into groups of three, each group should contain one oxygen and two hydrogen threads. 
-Puzzle: Write synchronization code for oxygen and hydrogen molecules that enforces these constraints.
+# 5.7 River crossing problem
 
-## 5.6.1 H2O hint
-Variáveis usadasa
+This is from a problem set written by Anthony Joseph at U.C. Berkeley, but
+I don’t know if he is the original author. It is similar to the H2O problem in
+the sense that it is a peculiar sort of barrier that only allows threads to pass in
+certain combinations.
+Somewhere near Redmond, Washington there is a rowboat that is used by
+both Linux hackers and Microsoft employees (serfs) to cross a river. The ferry
+can hold exactly four people; it won’t leave the shore with more or fewer. To
+guarantee the safety of the passengers, it is not permissible to put one hacker
+in the boat with three serfs, or to put one serf with three hackers. Any other
+combination is safe.
+As each thread boards the boat it should invoke a function called board. You
+must guarantee that all four threads from each boatload invoke board before
+any of the threads from the next boatload do.
+After all four threads have invoked board, exactly one of them should call
+a function named rowBoat, indicating that that thread will take the oars. It
+doesn’t matter which thread calls the function, as long as one does.
+Don’t worry about the direction of travel. Assume we are only interested in
+traffic going in one of the directions.
+
+## 5.7.1 River crossing hint
+Here are the variables I used in my solution
 ```python
-mutex = Semaphore(1) 
-oxygen = 0 
-hydrogen = 0
-barrier = Barrier(3)
-oxyQueue = Semaphore(0)
-hydroQueue = Semaphore(0)
+barrier = Barrier (4)
+mutex = Semaphore (1)
+hackers = 0
+serfs = 0
+hackerQueue = Semaphore (0)
+serfQueue = Semaphore (0)
+local isCaptain = False
 ```
-oxygen and hydrogen are counters, protected by mutex. 
-Barrier is where each set of three threads meets after invoking bond and before allowing the next set of threads to proceed. oxyQueue is the semaphore oxygen threads wait on; hydroQueue is the semaphore hydrogen threads wait on. 
-I am using the naming convention for queues, so oxyQueue.wait() means “join the oxygen queue” and oxyQueue.signal() means “release an oxygen thread from the queue.”
+hackers and serfs count the number of hackers and serfs waiting to board.
+Since they are both protected by mutex, we can check the condition of both
+variables without worrying about an untimely update. This is another example
+of a scoreboard.
+hackerQueue and serfQueue allow us to control the number of hackers and
+serfs that pass. The barrier makes sure that all four threads have invoked board
+before the captain invokes rowBoat.
+isCaptain is a local variable that indicates which thread should invoke row.
 
-## 5.6.2 H2O solution
-Initially hydroQueue and oxyQueue are locked. When an oxygen thread arrives it signals hydroQueue twice, allowing two hydrogens to proceed. Then the oxygen thread waits for the hydrogen threads to arrive.
+## 5.7.2 River crossing solution
+The basic idea of this solution is that each arrival updates one of the counters
+and then checks whether it makes a full complement, either by being the fourth
+of its kind or by completing a mixed pair of pairs.
+I’ll present the code for hackers; the serf code is symmetric (except, of course,
+that it is 1000 times bigger, full of bugs, and it contains an embedded web
+browser):
 
 ### Oxygen Code
 ```python
-mutex.wait() 
-oxygen += 1 
-if hydrogen >= 2: 
-    hydroQueue.signal(2) 
-    hydrogen -= 2 
-    oxyQueue.signal() 
-    oxygen -= 1 
-else: 
-    mutex.signal() 
+mutex . wait ()
+hackers += 1
+if hackers == 4:
+hackerQueue . signal (4)
+hackers = 0
+isCaptain = True
+elif hackers == 2 and serfs >= 2:
+hackerQueue . signal (2)
+serfQueue . signal (2)
+serfs -= 2
+hackers = 0
+isCaptain = True
+else :
+mutex . signal () # captain keeps the mutex
 
-oxyQueue.wait() 
-bond() 
-barrier.wait() 
-mutex.signal()
+hackerQueue . wait ()
+
+board ()
+barrier . wait ()
+
+if isCaptain :
+rowBoat ()
+mutex . signal ()
 ```
-
-
-
-
-### Hydrogen Code
-```python
-mutex.wait() 
-  hydrogen += 1 
-  if hydrogen >= 2 and oxygen >= 1: 
-    hydroQueue.signal(2) 
-    hydrogen-= 2 
-    oxyQueue.signal() 
-    oxygen-= 1 
-  else: 
-    mutex.signal() 
-  hydroQueue.wait() 
-  bond() 
-  barrier.wait()
-
-```
-
-  An unusual feature of this solution is that the exit point of the mutex is ambiguous. In some cases, threads enter the mutex, update the counter, and exit the mutex. But when a thread arrives that forms a complete set, it has to keep the mutex in order to bar subsequent threads until the current set have invoked bond. 
-  After invoking bond, the three threads wait at a barrier. When the barrier opens, we know that all three threads have invoked bond and that one of them holds the mutex. We don’t know which thread holds the mutex, but it doesn’t matter as long as only one of them releases it. Since we know there is only one oxygen thread, we make it do the work. 
-  This might seem wrong, because until now it has generally been true that a thread has to hold a lock in order to release it. But there is no rule that says that has to be true. This is one of those cases where it can be misleading to think of a mutex as a token that threads acquire and release.
+As each thread files through the mutual exclusion section, it checks whether
+a complete crew is ready to board. If so, it signals the appropriate threads,
+declares itself captain, and holds the mutex in order to bar additional threads
+until the boat has sailed.
+The barrier keeps track of how many threads have boarded. When the last
+thread arrives, all threads proceed. The captain invoked row and then (finally)
+releases the mutex.
