@@ -5,7 +5,7 @@
 #include <semaphore.h>
 #include <stdbool.h>
 
-#define ThreadsNumber 8
+#define ThreadsNumber 16
 #define boatNumber 4
 
 void board(int arg);
@@ -19,8 +19,6 @@ int serfs_on_boat = 0;
 
 pthread_barrier_t pessoasBarco;
 pthread_mutex_t mutex;
-sem_t hacker_sem;
-sem_t serf_sem;
 sem_t hacker_queue;
 sem_t serf_queue;
 
@@ -118,12 +116,10 @@ int main()
     pthread_t th[ThreadsNumber];
     pthread_mutex_init(&mutex, NULL);
     pthread_barrier_init(&pessoasBarco, NULL, boatNumber);
-    sem_init(&hacker_sem, 0, 4);
-    sem_init(&serf_sem, 0, 4);
     sem_init(&hacker_queue, 0, 0);
     sem_init(&serf_queue, 0, 0);
 
-    int pessoas[ThreadsNumber] = {1, 1, 1, 0, 1, 0, 1, 1};
+    int pessoas[ThreadsNumber] = {1, 1, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0};
 
     for (int i = 0; i < ThreadsNumber; i++)
     {
@@ -146,8 +142,6 @@ int main()
 
     pthread_mutex_destroy(&mutex);
     pthread_barrier_destroy(&pessoasBarco);
-    sem_destroy(&hacker_sem);
-    sem_destroy(&serf_sem);
     sem_destroy(&hacker_queue);
     sem_destroy(&serf_queue);
     return 0;
