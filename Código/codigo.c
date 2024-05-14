@@ -8,51 +8,106 @@
 #define ThreadsNumber 8
 #define boatNumber 4
 
-void board();
-void rowboard();
+void board(int arg);
+void rowboard(int arg);
 
 int hackers = 0;
 int serfs = 0;
 int boarded = 0;
+int hackers_on_boat = 0;
+int serfs_on_boat = 0;
 
 pthread_barrier_t pessoasBarco;
 pthread_mutex_t mutex;
 sem_t hacker_sem;
 sem_t serf_sem;
+sem_t hacker_queue;
+sem_t serf_queue;
 
 void *routine(void *args)
 {
     int index = *(int *)args;
+    bool isCaptain = false;
+
+    pthread_mutex_lock(&mutex);
     if (index == 0)
     {
-        sem_wait(&hacker_sem);
-        pthread_mutex_lock(&mutex);
         hackers++;
-        pthread_mutex_unlock(&mutex);
+        if (hackers == 4)
+        {
+            sem_post(&hacker_queue);
+            sem_post(&hacker_queue);
+            sem_post(&hacker_queue);
+            sem_post(&hacker_queue);
+            hackers -= 4;
+            isCaptain = true;
+        }
+        else if (hackers == 2 && serfs >= 2)
+        {
+            sem_post(&hacker_queue);
+            sem_post(&hacker_queue);
+            sem_post(&serf_queue);
+            sem_post(&serf_queue);
+            hackers -= 2;
+            serfs -= 2;
+            isCaptain = true;
+        }
+        else
+        {
+            pthread_mutex_unlock(&mutex);
+        }
     }
     else
     {
-        sem_wait(&serf_sem);
-        pthread_mutex_lock(&mutex);
         serfs++;
-        pthread_mutex_unlock(&mutex);
+        if (serfs == 4)
+        {
+            sem_post(&serf_queue);
+            sem_post(&serf_queue);
+            sem_post(&serf_queue);
+            sem_post(&serf_queue);
+            serfs -= 4;
+            isCaptain = true;
+        }
+        else if (hackers >= 2 && serfs >= 2)
+        {
+            sem_post(&hacker_queue);
+            sem_post(&hacker_queue);
+            sem_post(&serf_queue);
+            sem_post(&serf_queue);
+            hackers -= 2;
+            serfs -= 2;
+            isCaptain = true;
+        }
+        else
+        {
+            pthread_mutex_unlock(&mutex);
+        }
     }
 
-    sleep(1);
-    board(index);
-    sem_post(&hacker_sem);
-    sem_post(&serf_sem);
+    if (index == 0)
+    {
+        sem_wait(&hacker_queue);
+        hackers_on_boat++;
+    }
+    else
+    {
+        sem_wait(&serf_queue);
+        serfs_on_boat++;
+    }
 
-    pthread_mutex_lock(&mutex);
-    boarded++;
-    bool isCaptain = (boarded % boatNumber == 0);
-    pthread_mutex_unlock(&mutex);
+    board(index);
 
     pthread_barrier_wait(&pessoasBarco);
 
     if (isCaptain)
     {
+        printf("Hackers no barco: %d\n", hackers_on_boat);
+        printf("Serfs no barco: %d\n", serfs_on_boat);
+        hackers_on_boat = 0;
+        serfs_on_boat = 0;
         rowboard(index);
+        pthread_mutex_unlock(&mutex);
     }
 
     free(args);
@@ -60,14 +115,15 @@ void *routine(void *args)
 
 int main()
 {
-
     pthread_t th[ThreadsNumber];
     pthread_mutex_init(&mutex, NULL);
     pthread_barrier_init(&pessoasBarco, NULL, boatNumber);
-    sem_init(&hacker_sem, 0, 2);
-    sem_init(&serf_sem, 0, 2);
+    sem_init(&hacker_sem, 0, 4);
+    sem_init(&serf_sem, 0, 4);
+    sem_init(&hacker_queue, 0, 0);
+    sem_init(&serf_queue, 0, 0);
 
-    int pessoas[ThreadsNumber] = {0, 1, 0, 1, 0, 1, 0, 1};
+    int pessoas[ThreadsNumber] = {1, 1, 1, 0, 1, 0, 1, 1};
 
     for (int i = 0; i < ThreadsNumber; i++)
     {
@@ -92,9 +148,8 @@ int main()
     pthread_barrier_destroy(&pessoasBarco);
     sem_destroy(&hacker_sem);
     sem_destroy(&serf_sem);
-    printf("Hackers: %d\n", hackers);
-    printf("Serfs: %d\n", serfs);
-
+    sem_destroy(&hacker_queue);
+    sem_destroy(&serf_queue);
     return 0;
 }
 
