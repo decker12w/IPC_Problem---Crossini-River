@@ -1,3 +1,4 @@
+// Biblitecas Utilizadas
 #include <stdio.h>
 #include <pthread.h>
 #include <stdlib.h>
@@ -5,18 +6,21 @@
 #include <semaphore.h>
 #include <stdbool.h>
 
+// Definindo valores fixos
 #define ThreadsNumber 16
 #define boatNumber 4
 
 void board(int arg);
 void rowboard(int arg);
 
+// Definindo variáveis globais
 int hackers = 0;
 int serfs = 0;
 int boarded = 0;
 int hackers_on_boat = 0;
 int serfs_on_boat = 0;
 
+// Variáveis globais de barreias, threads e mutex
 pthread_barrier_t pessoasBarco;
 pthread_mutex_t mutex;
 sem_t hacker_queue;
@@ -113,14 +117,17 @@ void *routine(void *args)
 
 int main()
 {
+    // Iniciando as threads e as barreiras
     pthread_t th[ThreadsNumber];
     pthread_mutex_init(&mutex, NULL);
     pthread_barrier_init(&pessoasBarco, NULL, boatNumber);
     sem_init(&hacker_queue, 0, 0);
     sem_init(&serf_queue, 0, 0);
 
+    // Ordem que os hackers e serfs irão entrar, sendo hackers 0 e serfs 1
     int pessoas[ThreadsNumber] = {1, 1, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0};
 
+    // Executando a rotina nas threads
     for (int i = 0; i < ThreadsNumber; i++)
     {
         int *a = malloc(sizeof(int));
@@ -140,6 +147,7 @@ int main()
         }
     }
 
+    // Destruindo os arquivos resíduais e terminando o programa
     pthread_mutex_destroy(&mutex);
     pthread_barrier_destroy(&pessoasBarco);
     sem_destroy(&hacker_queue);
@@ -147,6 +155,7 @@ int main()
     return 0;
 }
 
+// Funções para printar na tela a execução do programa
 void board(int arg)
 {
     printf("Entrando no barco %s\n", arg == 0 ? "hackers" : "serfs");
