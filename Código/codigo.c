@@ -1,4 +1,3 @@
-// Biblitecas Utilizadas
 #include <stdio.h>
 #include <pthread.h>
 #include <stdlib.h>
@@ -16,12 +15,11 @@ void rowboard(int arg);
 // Definindo variáveis globais
 int hackers = 0;
 int serfs = 0;
-int boarded = 0;
 int hackers_on_boat = 0;
 int serfs_on_boat = 0;
 int cont_pessoa = 0;
 
-// Variáveis globais de barreias, threads e mutex
+// Variáveis globais de barreiras, threads e mutex
 pthread_barrier_t pessoasBarco;
 pthread_mutex_t mutex;
 sem_t hacker_queue;
@@ -126,7 +124,6 @@ int main()
     sem_init(&hacker_queue, 0, 0);
     sem_init(&serf_queue, 0, 0);
 
-
     int pessoas[ThreadsMAX]; // possibilidades máximas de pessoas 16
     int opc;
     do
@@ -146,7 +143,7 @@ int main()
         }
         switch (opc)
         {
-        case 1: //adicionando hacker
+        case 1: // adicionando hacker
             pessoas[cont_pessoa] = 0;
             cont_pessoa++;
             break;
@@ -173,10 +170,9 @@ int main()
         {
             perror("pthread_create");
         }
-    }   
+    }
 
-
-    // Esperando todas as threads terminarem sua execução    
+    // Esperando todas as threads terminarem sua execução
     for (int i = 0; i < cont_pessoa; i++)
     {
         if (pthread_join(th[i], NULL) != 0)
