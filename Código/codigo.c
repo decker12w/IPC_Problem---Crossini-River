@@ -7,7 +7,7 @@
 #include <stdbool.h>
 
 // Definindo valores fixos
-#define ThreadsNumber 16
+#define ThreadsMAX 20
 #define boatNumber 4
 
 void board(int arg);
@@ -19,6 +19,7 @@ int serfs = 0;
 int boarded = 0;
 int hackers_on_boat = 0;
 int serfs_on_boat = 0;
+int cont_pessoa = 0;
 
 // Variáveis globais de barreias, threads e mutex
 pthread_barrier_t pessoasBarco;
@@ -32,7 +33,7 @@ void *routine(void *args)
     bool isCaptain = false;
 
     pthread_mutex_lock(&mutex);
-    if (index == 0)
+    if (index == 0) // caso hackers entrarem no barco
     {
         hackers++;
         if (hackers == 4)
@@ -60,7 +61,7 @@ void *routine(void *args)
         }
     }
     else
-    {
+    { // caso serfs entrarem no barco
         serfs++;
         if (serfs == 4)
         {
@@ -87,12 +88,12 @@ void *routine(void *args)
         }
     }
 
-    if (index == 0)
+    if (index == 0) // faz o semáforo esperar o valor de um semáforo (hacker)
     {
         sem_wait(&hacker_queue);
         hackers_on_boat++;
     }
-    else
+    else // faz o semáforo esperar o valor de um semáforo (serf)
     {
         sem_wait(&serf_queue);
         serfs_on_boat++;
@@ -113,33 +114,70 @@ void *routine(void *args)
     }
 
     free(args);
+    return NULL;
 }
 
 int main()
 {
     // Iniciando as threads e as barreiras
-    pthread_t th[ThreadsNumber];
+    pthread_t th[ThreadsMAX];
     pthread_mutex_init(&mutex, NULL);
     pthread_barrier_init(&pessoasBarco, NULL, boatNumber);
     sem_init(&hacker_queue, 0, 0);
     sem_init(&serf_queue, 0, 0);
 
-    // Ordem que os hackers e serfs irão entrar, sendo hackers 0 e serfs 1
-    int pessoas[ThreadsNumber] = {1, 1, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0};
+
+    int pessoas[ThreadsMAX]; // possibilidades máximas de pessoas 16
+    int opc;
+    do
+    {
+        // Menu de opções
+        printf("Escolha entre as opções\n");
+        printf("1 - Adicionar hacker\n");
+        printf("2 - Adicionar serf\n");
+        printf("3 - Executar programa\n");
+        scanf("%d", &opc);
+
+        if (cont_pessoa == ThreadsMAX) // caso atingir o número máximo
+        {
+            printf("Desculpe o número máxima de pessoas foi atingida\n");
+            printf("Iremos executar o código\n");
+            continue;
+        }
+        switch (opc)
+        {
+        case 1: //adicionando hacker
+            pessoas[cont_pessoa] = 0;
+            cont_pessoa++;
+            break;
+        case 2: // adicionando serf
+            pessoas[cont_pessoa] = 1;
+            cont_pessoa++;
+            break;
+        case 3: // executando o programa
+            break;
+        default: // opc inválida
+            printf("Número inválido\nDigite outro\n");
+            scanf("%d", &opc);
+            break;
+        }
+        printf("\n\n\n");
+    } while (opc != 3);
 
     // Executando a rotina nas threads
-    for (int i = 0; i < ThreadsNumber; i++)
+    for (int i = 0; i < cont_pessoa; i++)
     {
         int *a = malloc(sizeof(int));
         *a = pessoas[i];
-
         if (pthread_create(&th[i], NULL, &routine, a) != 0)
         {
             perror("pthread_create");
         }
-    }
+    }   
 
-    for (int i = 0; i < ThreadsNumber; i++)
+
+    // Esperando todas as threads terminarem sua execução    
+    for (int i = 0; i < cont_pessoa; i++)
     {
         if (pthread_join(th[i], NULL) != 0)
         {
@@ -155,7 +193,7 @@ int main()
     return 0;
 }
 
-// Funções para printar na tela a execução do programa
+// Funções para printar na tela o andamento do programa
 void board(int arg)
 {
     printf("Entrando no barco %s\n", arg == 0 ? "hackers" : "serfs");
