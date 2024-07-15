@@ -6,7 +6,7 @@
 #include <stdbool.h>
 
 // Definindo valores fixos
-#define ThreadsMAX 20
+#define ThreadsMAX 50000
 #define boatNumber 4
 
 void board(int arg);
@@ -20,20 +20,19 @@ int serfs_on_boat = 0;
 int cont_pessoa = 0;
 
 // Variáveis globais de barreiras, threads e mutex
-pthread_barrier_t pessoasBarco;
 pthread_mutex_t mutex;
 pthread_mutex_t boat_mutex;
+pthread_cond_t barrier_cond;
+int barrier_count = 0;
 sem_t hacker_queue;
 sem_t serf_queue;
 
 void *routine(void *args)
 {
-    // José
     sleep(rand() % 5); // sleep para simular a chegada de pessoas (hackers e serfs)
     int index = *(int *)args;
     bool isCaptain = false;
 
-    // Taichi
     pthread_mutex_lock(&mutex);
     if (index == 0) // caso hackers entrarem no barco
     {
@@ -90,7 +89,6 @@ void *routine(void *args)
         }
     }
 
-    // José
     if (index == 0) // faz o semáforo esperar o valor de um semáforo (hacker)
     {
         sem_wait(&hacker_queue);
@@ -108,7 +106,19 @@ void *routine(void *args)
 
     board(index);
 
-    pthread_barrier_wait(&pessoasBarco);
+    // Implementação da barreira usando variável de condição e mutex
+    pthread_mutex_lock(&boat_mutex);
+    barrier_count++;
+    if (barrier_count == boatNumber)
+    {
+        barrier_count = 0;
+        pthread_cond_broadcast(&barrier_cond);
+    }
+    else
+    {
+        pthread_cond_wait(&barrier_cond, &boat_mutex);
+    }
+    pthread_mutex_unlock(&boat_mutex);
 
     if (isCaptain)
     {
@@ -126,11 +136,10 @@ void *routine(void *args)
 
 int main()
 {
-    // José
     pthread_t th[ThreadsMAX];
     pthread_mutex_init(&mutex, NULL);
     pthread_mutex_init(&boat_mutex, NULL);
-    pthread_barrier_init(&pessoasBarco, NULL, boatNumber);
+    pthread_cond_init(&barrier_cond, NULL);
     sem_init(&hacker_queue, 0, 0);
     sem_init(&serf_queue, 0, 0);
 
@@ -178,7 +187,7 @@ int main()
 
     pthread_mutex_destroy(&mutex);
     pthread_mutex_destroy(&boat_mutex);
-    pthread_barrier_destroy(&pessoasBarco);
+    pthread_cond_destroy(&barrier_cond);
     sem_destroy(&hacker_queue);
     sem_destroy(&serf_queue);
     return 0;
